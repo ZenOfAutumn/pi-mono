@@ -1,0 +1,9 @@
+{
+  "billing_id": "",
+  "agent_id": "",
+  "context_token": "",
+  "user_id": "",
+  "api_url": "https://aigc.sankuai.com/v1/responses",
+  "default_model": "gpt-4o-mini"
+}
+
