@@ -1,11 +1,9 @@
 """
-Tests for agent.py module.
+agent.py 模块的单元测试。
 """
 import asyncio
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -22,16 +20,16 @@ from src.types import (
 
 
 def create_model():
-    """Create a test model."""
+    """创建测试模型。"""
     return Model(
-        api="openai-responses",
-        provider="openai",
-        id="mock-model"
+        api="friday-responses",
+        provider="friday",
+        id="gpt-4o-mini"
     )
 
 
 def create_assistant_message(text: str):
-    """Create a test assistant message."""
+    """创建测试助手消息。"""
     return {
         "role": "assistant",
         "content": [{"type": "text", "text": text}],
@@ -45,7 +43,7 @@ def create_assistant_message(text: str):
 
 
 class MockAssistantStream:
-    """Mock stream for testing."""
+    """用于测试的模拟流。"""
 
     def __init__(self):
         self._queue = asyncio.Queue()
@@ -53,11 +51,11 @@ class MockAssistantStream:
         self._ended = asyncio.Event()
 
     def push(self, event):
-        """Push an event to the stream."""
+        """将事件推送到流中。"""
         self._queue.put_nowait(event)
 
     def end(self, result=None):
-        """End the stream."""
+        """结束流。"""
         self._result = result
         self._ended.set()
 
@@ -93,15 +91,15 @@ class MockAssistantStream:
 
 
 class TestAgent:
-    """Tests for Agent class."""
+    """Agent 类的测试。"""
 
     def test_create_agent_with_default_state(self):
-        """Test creating an agent instance with default state."""
+        """测试使用默认状态创建代理实例。"""
         agent = Agent()
 
         assert agent.state is not None
         assert agent.state.system_prompt == ""
-        # Model should be None in Python (no default model)
+        # Python 中模型应为 None（无默认模型）
         assert agent.state.thinking_level == ThinkingLevel.OFF
         assert agent.state.tools == []
         assert agent.state.messages == []
@@ -111,7 +109,7 @@ class TestAgent:
         assert agent.state.error is None
 
     def test_create_agent_with_custom_initial_state(self):
-        """Test creating an agent with custom initial state."""
+        """测试使用自定义初始状态创建代理。"""
         model = create_model()
         opts = AgentOptions(
             initial_state={
@@ -127,7 +125,7 @@ class TestAgent:
         assert agent.state.thinking_level == ThinkingLevel.LOW
 
     def test_subscribe_to_events(self):
-        """Test subscribing to events."""
+        """测试订阅事件。"""
         agent = Agent()
 
         event_count = 0
@@ -138,18 +136,18 @@ class TestAgent:
 
         unsubscribe = agent.subscribe(on_event)
 
-        # No initial event on subscribe
+        # 订阅时没有初始事件
         assert event_count == 0
 
-        # State mutators don't emit events
+        # 状态修改器不发出事件
         agent.set_system_prompt("Test prompt")
         assert event_count == 0
         assert agent.state.system_prompt == "Test prompt"
 
-        # Unsubscribe should work
+        # 取消订阅应该有效
         unsubscribe()
         agent.set_system_prompt("Another prompt")
-        assert event_count == 0  # Should not increase
+        assert event_count == 0  # 不应该增加
 
     def test_update_state_with_mutators(self):
         """Test updating state with mutators."""
@@ -248,7 +246,7 @@ class TestAgent:
         assert agent.get_follow_up_mode() == "all"
 
     def test_session_id(self):
-        """Test session ID."""
+        """测试会话 ID。"""
         opts = AgentOptions(session_id="session-abc")
         agent = Agent(opts)
 
@@ -258,7 +256,7 @@ class TestAgent:
         assert agent.session_id == "session-def"
 
     def test_reset(self):
-        """Test reset method."""
+        """测试重置方法。"""
         agent = Agent()
 
         agent.set_system_prompt("Test prompt")
@@ -277,10 +275,10 @@ class TestAgent:
 
 
 class TestDefaultConvertToLlm:
-    """Tests for default_convert_to_llm function."""
+    """default_convert_to_llm 函数的测试。"""
 
     def test_filter_non_llm_messages(self):
-        """Test that non-LLM messages are filtered out."""
+        """测试非 LLM 消息被过滤出去。"""
         messages = [
             {"role": "user", "content": "Hello", "timestamp": 123},
             {"role": "assistant", "content": [], "timestamp": 124},
@@ -312,7 +310,7 @@ class TestAgentOptions:
         assert opts.session_id is None
 
     def test_custom_options(self):
-        """Test custom options."""
+        """测试自定义选项。"""
         model = create_model()
 
         async def custom_convert(messages):

@@ -322,7 +322,7 @@ class TestAgentLoopContinue:
 
     @pytest.mark.asyncio
     async def test_continue_from_existing_context(self):
-        """Test continuing from existing context."""
+        """测试从现有上下文继续。"""
         user_message = create_user_message("Hello")
 
         context = AgentContext(
@@ -345,18 +345,18 @@ class TestAgentLoopContinue:
         async for event in stream:
             events.append(event)
 
-        # Should only have assistant message events (not user message events)
+        # 应该只有助手消息事件（没有用户消息事件）
         message_end_events = [e for e in events if e.get("type") == "message_end"]
         assert len(message_end_events) == 1
         assert message_end_events[0]["message"]["role"] == "assistant"
 
 
 class TestSkipToolCall:
-    """Tests for _skip_tool_call function."""
+    """_skip_tool_call 函数的测试。"""
 
     def test_skip_tool_call(self):
-        """Test skipping a tool call."""
-        # Create a mock stream that doesn't need event loop
+        """测试跳过工具调用。"""
+        # 创建不需要事件循环的模拟流
         class MockStream:
             def __init__(self):
                 self.events = []
@@ -376,6 +376,6 @@ class TestSkipToolCall:
         assert result["tool_call_id"] == "tool-123"
         assert result["tool_name"] == "calculate"
         assert result["is_error"] is True
-        # result["content"][0] is a TextContent dataclass, not a dict
+        # result["content"][0] 是 TextContent 数据类，不是字典
         assert "Skipped" in result["content"][0].text
 

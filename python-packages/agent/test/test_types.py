@@ -274,18 +274,18 @@ class TestAgentEvents:
         assert event.type == "agent_start"
 
     def test_agent_end_event(self):
-        """Test AgentEndEvent."""
+        """测试 AgentEndEvent。"""
         event = AgentEndEvent(messages=[])
         assert event.type == "agent_end"
         assert event.messages == []
 
     def test_turn_start_event(self):
-        """Test TurnStartEvent."""
+        """测试 TurnStartEvent。"""
         event = TurnStartEvent()
         assert event.type == "turn_start"
 
     def test_turn_end_event(self):
-        """Test TurnEndEvent."""
+        """测试 TurnEndEvent。"""
         event = TurnEndEvent(
             message={"role": "assistant", "content": []},
             tool_results=[]
@@ -293,21 +293,21 @@ class TestAgentEvents:
         assert event.type == "turn_end"
 
     def test_message_start_event(self):
-        """Test MessageStartEvent."""
+        """测试 MessageStartEvent。"""
         event = MessageStartEvent(
             message={"role": "user", "content": "Hello", "timestamp": 123}
         )
         assert event.type == "message_start"
 
     def test_message_end_event(self):
-        """Test MessageEndEvent."""
+        """测试 MessageEndEvent。"""
         event = MessageEndEvent(
             message={"role": "assistant", "content": []}
         )
         assert event.type == "message_end"
 
     def test_tool_execution_start_event(self):
-        """Test ToolExecutionStartEvent."""
+        """测试 ToolExecutionStartEvent。"""
         event = ToolExecutionStartEvent(
             tool_call_id="call-123",
             tool_name="calculate",
@@ -318,7 +318,7 @@ class TestAgentEvents:
         assert event.tool_name == "calculate"
 
     def test_tool_execution_end_event(self):
-        """Test ToolExecutionEndEvent."""
+        """测试 ToolExecutionEndEvent。"""
         event = ToolExecutionEndEvent(
             tool_call_id="call-123",
             tool_name="calculate",

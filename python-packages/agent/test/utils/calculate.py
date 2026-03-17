@@ -1,5 +1,5 @@
 """
-Calculate tool for testing.
+用于测试的计算工具。
 """
 import os
 import sys
@@ -15,16 +15,16 @@ from src.types import (
 
 def calculate(expression: str) -> AgentToolResult:
     """
-    Evaluate a mathematical expression.
+    计算数学表达式。
 
     Args:
-        expression: The mathematical expression to evaluate
+        expression: 要计算的数学表达式
 
     Returns:
-        AgentToolResult with the calculated result
+        包含计算结果的 AgentToolResult
     """
     try:
-        # Safe evaluation using a restricted environment
+        # 在受限环境中安全地计算表达式
         allowed_names = {
             "abs": abs,
             "min": min,
