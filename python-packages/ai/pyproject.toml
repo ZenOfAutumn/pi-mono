@@ -40,8 +40,8 @@ dev = [
 Homepage = "https://github.com/badlogic/pi-mono"
 Repository = "https://github.com/badlogic/pi-mono"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools]
+package-dir = {"pi_ai" = "src"}
 
 [tool.setuptools.package-data]
 pi_ai = ["py.typed"]

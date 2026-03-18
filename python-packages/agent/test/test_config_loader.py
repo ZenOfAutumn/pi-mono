@@ -17,8 +17,10 @@ from src.config_loader import (
     create_agent_context_from_config,
     create_agent_state_from_config,
     create_agent_loop_config_from_config,
+    get_tool_names_from_config,
+    create_tool_registry_from_available_tools,
 )
-from src.types import ThinkingLevel
+from src.types import ThinkingLevel, AgentTool
 
 
 class TestLoadSystemPrompt:
@@ -104,14 +106,14 @@ class TestLoadAgentConfig:
         """测试从文件路径加载 system_prompt。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             # 创建提示词文件
-            prompt_file = Path(tmpdir) / "system_prompt.txt"
+            prompt_file = Path(tmpdir) / "system_prompt.md"
             prompt_content = "从文件加载的系统提示词。"
             prompt_file.write_text(prompt_content, encoding="utf-8")
 
             # 创建配置文件
             config_file = Path(tmpdir) / "agent_config.json"
             config = {
-                "system_prompt": "system_prompt.txt",
+                "system_prompt": "system_prompt.md",
                 "model": {"api": "openai-chat", "provider": "openai", "id": "gpt-4o"}
             }
             config_file.write_text(json.dumps(config), encoding="utf-8")
@@ -211,6 +213,153 @@ class TestCreateAgentStateFromConfig:
         assert state.system_prompt == ""
         assert state.thinking_level == ThinkingLevel.OFF
 
+    def test_create_state_with_available_tools(self):
+        """测试提供可用工具列表时从配置筛选工具。"""
+        config = {
+            "system_prompt": "测试",
+            "tools": ["tool1", "tool2"],
+        }
+
+        # 创建测试工具
+        tool1 = AgentTool(name="tool1", description="Test tool 1", parameters={}, label="Tool1")
+        tool2 = AgentTool(name="tool2", description="Test tool 2", parameters={}, label="Tool2")
+        tool3 = AgentTool(name="tool3", description="Test tool 3", parameters={}, label="Tool3")
+        available_tools = [tool1, tool2, tool3]
+
+        state = create_agent_state_from_config(config, available_tools=available_tools)
+
+        assert len(state.tools) == 2
+        assert tool1 in state.tools
+        assert tool2 in state.tools
+        assert tool3 not in state.tools
+
+    def test_create_state_with_available_tools_no_config_tools(self):
+        """测试提供可用工具但配置未指定工具时使用所有可用工具。"""
+        config = {"system_prompt": "测试"}
+
+        tool1 = AgentTool(name="tool1", description="Test tool 1", parameters={}, label="Tool1")
+        tool2 = AgentTool(name="tool2", description="Test tool 2", parameters={}, label="Tool2")
+        available_tools = [tool1, tool2]
+
+        state = create_agent_state_from_config(config, available_tools=available_tools)
+
+        assert len(state.tools) == 2
+        assert tool1 in state.tools
+        assert tool2 in state.tools
+
+    def test_create_state_with_tool_module_path(self):
+        """测试从模块路径自动发现工具。"""
+        config = {
+            "system_prompt": "测试",
+            "tools": ["bash"],
+        }
+
+        state = create_agent_state_from_config(config, tool_module_path="tools")
+
+        assert len(state.tools) == 1
+        assert state.tools[0].name == "bash"
+
+    def test_create_state_with_tool_module_path_no_config_tools(self):
+        """测试从模块路径发现所有工具（配置未指定）。"""
+        config = {"system_prompt": "测试"}
+
+        state = create_agent_state_from_config(config, tool_module_path="tools")
+
+        # 应该包含 bash 工具
+        tool_names = [t.name for t in state.tools]
+        assert "bash" in tool_names
+
+    def test_create_state_tools_priority_available_tools_over_module(self):
+        """测试 available_tools 优先级高于 tool_module_path。"""
+        config = {
+            "system_prompt": "测试",
+            "tools": ["custom_tool"],
+        }
+
+        custom_tool = AgentTool(
+            name="custom_tool",
+            description="Custom tool",
+            parameters={},
+            label="Custom"
+        )
+        available_tools = [custom_tool]
+
+        # 同时提供 available_tools 和 tool_module_path，应该优先使用 available_tools
+        state = create_agent_state_from_config(
+            config,
+            available_tools=available_tools,
+            tool_module_path="tools"
+        )
+
+        assert len(state.tools) == 1
+        assert state.tools[0].name == "custom_tool"
+
+    def test_create_state_with_tool_module_path_in_config(self):
+        """测试从配置中读取 tool_module_path。"""
+        config = {
+            "system_prompt": "测试",
+            "tool_module_path": "tools",
+            "tools": ["bash"],
+        }
+
+        state = create_agent_state_from_config(config)
+
+        assert len(state.tools) == 1
+        assert state.tools[0].name == "bash"
+
+    def test_create_state_tool_module_path_param_overrides_config(self):
+        """测试函数参数 tool_module_path 优先级高于配置。"""
+        config = {
+            "system_prompt": "测试",
+            "tool_module_path": "nonexistent_module",
+            "tools": ["bash"],
+        }
+
+        # 函数参数应该覆盖配置中的值
+        state = create_agent_state_from_config(
+            config,
+            tool_module_path="tools"
+        )
+
+        assert len(state.tools) == 1
+        assert state.tools[0].name == "bash"
+
+    def test_create_state_with_tool_module_path_in_config_no_tools(self):
+        """测试配置中有 tool_module_path 但没有 tools 列表时使用所有工具。"""
+        config = {
+            "system_prompt": "测试",
+            "tool_module_path": "tools",
+        }
+
+        state = create_agent_state_from_config(config)
+
+        # 应该包含 bash 工具
+        tool_names = [t.name for t in state.tools]
+        assert "bash" in tool_names
+
+    def test_create_state_with_no_tools_params(self):
+        """测试不提供工具参数时 tools 为空列表。"""
+        config = {"system_prompt": "测试"}
+
+        state = create_agent_state_from_config(config)
+
+        assert state.tools == []
+
+    def test_create_state_with_config_tools_not_found(self):
+        """测试配置中的工具在可用工具中找不到时跳过。"""
+        config = {
+            "system_prompt": "测试",
+            "tools": ["nonexistent_tool"],
+        }
+
+        tool1 = AgentTool(name="tool1", description="Test tool 1", parameters={}, label="Tool1")
+        available_tools = [tool1]
+
+        state = create_agent_state_from_config(config, available_tools=available_tools)
+
+        # 找不到的工具应该被跳过
+        assert state.tools == []
+
 
 class TestCreateAgentLoopConfigFromConfig:
     """create_agent_loop_config_from_config 函数的测试。"""
@@ -242,4 +391,110 @@ class TestCreateAgentLoopConfigFromConfig:
         assert loop_config.model.api == ""
         assert loop_config.temperature is None
         assert loop_config.max_tokens is None
+
+
+class TestGetToolNamesFromConfig:
+    """get_tool_names_from_config 函数的测试。"""
+
+    def test_get_tool_names_from_config(self):
+        """测试从配置获取工具名称列表。"""
+        config = {"tools": ["calculate", "read_file", "write_file"]}
+
+        result = get_tool_names_from_config(config)
+
+        assert result == ["calculate", "read_file", "write_file"]
+
+    def test_get_tool_names_empty_list(self):
+        """测试配置中 tools 为空列表。"""
+        config = {"tools": []}
+
+        result = get_tool_names_from_config(config)
+
+        assert result == []
+
+    def test_get_tool_names_missing_key(self):
+        """测试配置中没有 tools 键。"""
+        config = {"model": {}}
+
+        result = get_tool_names_from_config(config)
+
+        assert result == []
+
+    def test_get_tool_names_non_list_value(self):
+        """测试 tools 值为非列表类型。"""
+        config = {"tools": "not_a_list"}
+
+        result = get_tool_names_from_config(config)
+
+        assert result == []
+
+    def test_get_tool_names_filters_non_strings(self):
+        """测试过滤非字符串的工具名称。"""
+        config = {"tools": ["calculate", 123, None, "read_file"]}
+
+        result = get_tool_names_from_config(config)
+
+        assert result == ["calculate", "read_file"]
+
+
+class TestCreateToolRegistryFromAvailableTools:
+    """create_tool_registry_from_available_tools 函数的测试。"""
+
+    def _create_test_tool(self, name: str) -> AgentTool:
+        """创建测试工具。"""
+        return AgentTool(
+            name=name,
+            description=f"Test tool {name}",
+            parameters={},
+            label=name.capitalize(),
+        )
+
+    def test_create_registry_with_config_tools(self):
+        """测试根据配置创建注册表（选择特定工具）。"""
+        tool1 = self._create_test_tool("calculate")
+        tool2 = self._create_test_tool("read_file")
+        tool3 = self._create_test_tool("write_file")
+        all_tools = [tool1, tool2, tool3]
+
+        config = {"tools": ["calculate", "read_file"]}
+        registry = create_tool_registry_from_available_tools(all_tools, config)
+
+        assert len(registry) == 2
+        assert registry.has("calculate")
+        assert registry.has("read_file")
+        assert not registry.has("write_file")
+
+    def test_create_registry_without_config(self):
+        """测试不提供配置时注册所有工具。"""
+        tool1 = self._create_test_tool("calculate")
+        tool2 = self._create_test_tool("read_file")
+        all_tools = [tool1, tool2]
+
+        registry = create_tool_registry_from_available_tools(all_tools)
+
+        assert len(registry) == 2
+        assert registry.has("calculate")
+        assert registry.has("read_file")
+
+    def test_create_registry_with_empty_config(self):
+        """测试空配置时注册所有工具。"""
+        tool1 = self._create_test_tool("calculate")
+        all_tools = [tool1]
+
+        config = {}
+        registry = create_tool_registry_from_available_tools(all_tools, config)
+
+        assert len(registry) == 1
+        assert registry.has("calculate")
+
+    def test_create_registry_skips_missing_tools(self):
+        """测试跳过配置中存在但可用工具中不存在的工具。"""
+        tool = self._create_test_tool("calculate")
+        all_tools = [tool]
+
+        config = {"tools": ["calculate", "nonexistent"]}
+        registry = create_tool_registry_from_available_tools(all_tools, config)
+
+        assert len(registry) == 1
+        assert registry.has("calculate")
 

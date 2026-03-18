@@ -5,10 +5,11 @@
     "provider": "openai",
     "id": "gpt-4o"
   },
-  "thinking_level": "off",
-  "temperature": 0.7,
+  "thinking_level": "high",
+  "temperature": 0.3,
   "max_tokens": 2048,
-  "tools": [],
+  "tool_module_path": "tools",
+  "tools": ["bash"],
   "steering_mode": "one-at-a-time",
   "follow_up_mode": "one-at-a-time"
 }
