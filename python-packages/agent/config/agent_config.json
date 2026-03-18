@@ -1,0 +1,15 @@
+{
+  "system_prompt": "config/prompts/system_prompt.txt",
+  "model": {
+    "api": "openai-chat",
+    "provider": "openai",
+    "id": "gpt-4o"
+  },
+  "thinking_level": "off",
+  "temperature": 0.7,
+  "max_tokens": 2048,
+  "tools": [],
+  "steering_mode": "one-at-a-time",
+  "follow_up_mode": "one-at-a-time"
+}
+

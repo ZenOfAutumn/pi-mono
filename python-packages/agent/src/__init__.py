@@ -8,6 +8,14 @@ pi-agent-core package.
 from .agent import Agent, AgentOptions
 # 循环函数
 from .agent_loop import agent_loop, agent_loop_continue
+# 配置加载工具
+from .config_loader import (
+    load_agent_config,
+    load_system_prompt,
+    create_agent_context_from_config,
+    create_agent_state_from_config,
+    create_agent_loop_config_from_config,
+)
 # 类型定义
 from .types import (
     # 内容块类型
@@ -101,5 +109,11 @@ __all__ = [
     "ThinkingLevel",
     "StreamFn",
     "Usage",
+    # 配置加载工具
+    "load_agent_config",
+    "load_system_prompt",
+    "create_agent_context_from_config",
+    "create_agent_state_from_config",
+    "create_agent_loop_config_from_config",
 ]
 
