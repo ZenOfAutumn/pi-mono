@@ -5,19 +5,15 @@ Agent 集成测试。
 """
 import asyncio
 import json
-import os
-import sys
 import tempfile
 from pathlib import Path
 from typing import List, Optional
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import pytest
-
-from src import load_agent_config, create_agent_state_from_config, create_stream_fn_from_agent_config, Agent, AgentOptions
-from src.agent_loop import AgentStream
-from src.types import AgentTool, AgentToolResult, TextContent, Usage
+from agent import load_agent_config, create_agent_state_from_config, create_stream_fn_from_agent_config, Agent, \
+    AgentOptions
+from agent.agent_loop import AgentStream
+from agent.types import AgentTool, AgentToolResult, TextContent, Usage
 
 
 def create_mock_stream_fn(responses: List[dict]):
@@ -212,15 +208,11 @@ class TestAgentIntegration:
         此测试会实际调用 LLM（friday 平台），需要确保环境中有可用的 API 密钥。
         如果没有 API 密钥，测试会被跳过。
         """
-        # 检查 pi-ai 模块是否可用
-        try:
-            import pi_ai
-        except ImportError:
-            pytest.skip("Skipping test: pi-ai module not available")
+        # 检查 ai 模块是否可用
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # 使用 llm_config_path 创建测试配置
-            # 使用相对于项目根目录的路径
+            # 计算正确的路径：test/ -> agent/ -> python-packages/ -> ai/config/friday.json
             project_root = Path(__file__).parent.parent.parent  # test/ -> agent/ -> python-packages/
             llm_config_path = str(project_root / "ai" / "config" / "friday.json")
             config_file = self._create_test_config(tmpdir, llm_config_path=llm_config_path)
@@ -270,19 +262,14 @@ class TestAgentIntegration:
 
             def on_event(event):
                 events.append(event)
-                # 打印事件用于调试
-                print(f"[EVENT] {event.get('type')}")
 
             agent.subscribe(on_event)
 
             # 执行 prompt（实际调用 LLM）
-            print("\n[DEBUG] Starting prompt with actual LLM call...")
             await agent.prompt("Say 'Hello from agent test' and nothing else")
-            print("[DEBUG] Prompt completed!")
 
             # 验证事件流中包含了预期的初始事件
             event_types = [e.get("type") for e in events]
-            print(f"\n[DEBUG] Events received: {event_types}")
 
             # 验证至少有一些事件被发出（表明 prompt 方法确实被执行了）
             assert len(events) > 0, "应该至少发出一些事件"

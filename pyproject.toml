@@ -1,0 +1,98 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pi-mono"
+version = "0.1.0"
+description = "Pi Mono - Unified AI/Agent development workspace"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Pi Mono Team"},
+]
+keywords = ["ai", "agent", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+# 根项目依赖（所有子模块共享）
+dependencies = [
+    # 类型支持
+    "typing-extensions>=4.0.0",
+]
+
+[project.optional-dependencies]
+# AI 模块依赖
+ai = [
+    "pi-ai",
+    "jsonschema>=4.0.0",
+    "aiohttp>=3.8.0",
+]
+
+# Agent 模块依赖
+agent = [
+    "pi-agent-core",
+    "pi-ai",
+]
+
+# 所有 Python 模块
+all = [
+    "pi-ai",
+    "pi-agent-core",
+    "jsonschema>=4.0.0",
+    "aiohttp>=3.8.0",
+]
+
+# 开发依赖
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    "mypy>=1.8.0",
+]
+
+[project.urls]
+Repository = "https://github.com/badlogic/pi-mono"
+
+# ============================================================
+# UV 工作区配置
+# ============================================================
+[tool.uv.workspace]
+members = [
+    "python-packages/ai",
+    "python-packages/agent",
+]
+
+[tool.uv.sources]
+pi-ai = { path = "python-packages/ai", editable = true }
+pi-agent-core = { path = "python-packages/agent", editable = true }
+
+# ============================================================
+# 工具配置
+# ============================================================
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["python-packages"]
+python_files = "test_*.py"
+

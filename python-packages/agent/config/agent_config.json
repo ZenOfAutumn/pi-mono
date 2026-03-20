@@ -1,15 +1,16 @@
 {
-  "system_prompt": "config/prompts/system_prompt.txt",
+  "system_prompt": "prompts/system_prompt.md",
   "model": {
-    "api": "openai-chat",
-    "provider": "openai",
-    "id": "gpt-4o"
+    "api": "friday-responses",
+    "provider": "friday",
+    "id": "gpt-4o-mini"
   },
-  "thinking_level": "high",
+  "llm_config_path": "../../ai/config/friday.json",
+  "thinking_level": "",
   "temperature": 0.3,
   "max_tokens": 2048,
   "tool_module_path": "tools",
-  "tools": ["bash"],
+  "tools": [],
   "steering_mode": "one-at-a-time",
   "follow_up_mode": "one-at-a-time"
 }
