@@ -35,6 +35,7 @@ from ..core_types import (
     ToolCallEndEvent,
     DoneEvent,
     ErrorEvent,
+    ToolCall,
 )
 from ..utils.event_stream import AssistantMessageEventStream
 from ..utils.json_parse import parse_streaming_json
@@ -46,7 +47,6 @@ if TYPE_CHECKING:
         Model,
         SimpleStreamOptions,
         Tool,
-        ToolCall,
         ToolResultMessage,
     )
 
@@ -235,6 +235,9 @@ async def process_friday_stream(
             except json.JSONDecodeError:
                 continue
 
+            # 调试：打印所有事件
+            print(f"[FRIDAY EVENT] {event.get('type', 'unknown')}: {json.dumps(event, ensure_ascii=False)[:200]}")
+
             current_item_type, current_block, partial_json = await _process_event(
                 event,
                 output,
@@ -334,6 +337,24 @@ async def _process_event(
     # 函数调用参数完成事件
     elif event_type == "response.function_call_arguments.done":
         arguments_str = event.get("arguments", "{}")
+        item_id = event.get("item_id", "unknown")
+        # 从 item_id 提取 call_id（Friday API 格式）
+        call_id = item_id.split("_")[-1] if "_" in item_id else item_id
+        # 尝试从 event 中获取 name，如果没有则稍后从 response.completed 获取
+        name = event.get("name", "")
+        # 如果 current_block 不存在（API 可能跳过了 output_item.added），自动创建
+        if not current_block or current_block.get("type") != "toolCall":
+            current_block = {
+                "type": "toolCall",
+                "id": f"{call_id}|{item_id}",
+                "name": name or "unknown",
+                "arguments": {},
+            }
+            blocks.append(current_block)
+            stream.push(ToolCallStartEvent(
+                contentIndex=len(blocks) - 1,
+                partial=output,
+            ))
         if current_block and current_block.get("type") == "toolCall":
             try:
                 current_block["arguments"] = json.loads(arguments_str)
@@ -393,6 +414,31 @@ async def _process_event(
         # 映射停止原因
         status = response_data.get("status", "completed")
         output.stopReason = _map_stop_reason(status)
+
+        # 从 response.output 获取完整的工具调用信息
+        output_items = response_data.get("output", [])
+        for item in output_items:
+            if item.get("type") == "function_call":
+                # 补充工具名称到现有的 toolCall 块
+                for block in blocks:
+                    if block.get("type") == "toolCall":
+                        block_id = block.get("id", "")
+                        item_id = item.get("id", "")
+                        if item_id in block_id or block_id == "unknown|unknown":
+                            block["name"] = item.get("name", block.get("name", "unknown"))
+                            block["id"] = f"{item.get('call_id', '')}|{item_id}"
+                            # 发送 ToolCallEndEvent
+                            tool_call = ToolCall(
+                                type="toolCall",
+                                id=block["id"],
+                                name=block["name"],
+                                arguments=block.get("arguments", {}),
+                            )
+                            stream.push(ToolCallEndEvent(
+                                contentIndex=blocks.index(block),
+                                toolCall=tool_call,
+                                partial=output,
+                            ))
 
         # 如果有工具调用，停止原因为 toolUse
         if any(b.get("type") == "toolCall" for b in blocks):
@@ -494,6 +540,14 @@ def stream_friday_responses(
             tools = convert_tools_to_friday(context.tools) if context.tools else None
             params = build_friday_request_params(model.id, messages, tools, options)
 
+            # 调试：打印请求参数
+            print("\n" + "="*80)
+            print("FRIDAY API REQUEST:")
+            print(f"  Model: {model.id}")
+            print(f"  Tools: {tools}")
+            print(f"  Params: {json.dumps(params, ensure_ascii=False, indent=2)}")
+            print("="*80 + "\n")
+
             # 发送请求
             import aiohttp
 
@@ -503,16 +557,30 @@ def stream_friday_responses(
                     headers=auth_config.to_headers(),
                     json=params,
                 ) as response:
+                    # 打印响应基本信息
+                    print("\n" + "="*80)
+                    print("FRIDAY API RESPONSE:")
+                    print(f"  Status: {response.status}")
+                    print(f"  Headers: {dict(response.headers)}")
+
                     if response.status != 200:
                         error_text = await response.text()
+                        print(f"  Error Body: {error_text}")
+                        print("="*80 + "\n")
                         raise Exception(f"Friday API 错误 ({response.status}): {error_text}")
+
+                    print("  Response: <streaming> (processing stream...)")
+                    print("="*80 + "\n")
 
                     await process_friday_stream(response, output, stream)
 
+            print("\n" + "="*80)
+            print("FRIDAY API RESPONSE SUMMARY:")
             print(json.dumps({
                 "content": [{"type": b.get("type"), "text": b.get("text", "")} for b in output.content],
                 "stopReason": output.stopReason,
             }, ensure_ascii=False, indent=2))
+            print("="*80 + "\n")
 
             # 发送完成事件
             if output.stopReason not in ("error", "aborted"):
